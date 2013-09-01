@@ -1,0 +1,9 @@
+D:\Data\Projects\Osu Jump Trainer\Osu Jump Trainer\bin\Release\Osu Jump Trainer.exe.config
+D:\Data\Projects\Osu Jump Trainer\Osu Jump Trainer\bin\Release\Osu Jump Trainer.exe
+D:\Data\Projects\Osu Jump Trainer\Osu Jump Trainer\bin\Release\Osu Jump Trainer.pdb
+D:\Data\Projects\Osu Jump Trainer\Osu Jump Trainer\obj\x86\Release\Osu_Jump_Trainer.ApplicationIcons.resources
+D:\Data\Projects\Osu Jump Trainer\Osu Jump Trainer\obj\x86\Release\Osu_Jump_Trainer.Form1.resources
+D:\Data\Projects\Osu Jump Trainer\Osu Jump Trainer\obj\x86\Release\Osu_Jump_Trainer.Resources.resources
+D:\Data\Projects\Osu Jump Trainer\Osu Jump Trainer\obj\x86\Release\Osu Jump Trainer.vbproj.GenerateResource.Cache
+D:\Data\Projects\Osu Jump Trainer\Osu Jump Trainer\obj\x86\Release\Osu Jump Trainer.exe
+D:\Data\Projects\Osu Jump Trainer\Osu Jump Trainer\obj\x86\Release\Osu Jump Trainer.pdb

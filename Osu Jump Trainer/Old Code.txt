@@ -1,0 +1,301 @@
+﻿            For Each fp In e_fpointimages.ToArray
+                Dim values As New ArrayList
+                Dim currentindex As Integer = 0
+                While currentindex <> -1
+                    Dim nextindex As Integer = fp.IndexOf(",", currentindex + 1)
+                    values.Add(fp.Substring(IIf(currentindex = 0, 0, currentindex + 1), IIf(nextindex = -1, fp.Length - (currentindex + 1), nextindex - (IIf(currentindex = 0, currentindex, currentindex + 1)))))
+                    currentindex = nextindex
+                End While
+                Dim newalpha As Double
+                If values.Count = 5 Then
+                    If Date.Now.TimeOfDay.TotalMilliseconds - values(4) > 200 Then
+                        e_fpointimages.Remove(fp)
+                        GoTo A 'LOL GOTO AMRITE? fml..
+                    Else
+                        newalpha = 1 - ((Date.Now.TimeOfDay.TotalMilliseconds - values(4)) / 200)
+                    End If
+                Else
+                    newalpha = 1.0
+                End If
+
+
+                Dim upperLeft As Point = rotate(-e_followpointimage.Width / 2, e_followpointimage.Height / 2, values(3))
+                Dim upperRight As Point = rotate(e_followpointimage.Width / 2, e_followpointimage.Height / 2, values(3))
+                Dim lowerLeft As Point = rotate(-e_followpointimage.Width / 2, -e_followpointimage.Height / 2, values(3))
+
+                Dim center As New Point(values(1) + e_followpointimage.Width / 2, values(2) + e_followpointimage.Height / 2)
+                Dim newpoints() As Point = {upperLeft + center, upperRight + center, lowerLeft + center}
+                alphaclrmtrx.Matrix33 = newalpha
+                imgattr.SetColorMatrix(alphaclrmtrx)
+                e.Graphics.DrawImage(e_followpointimage, newpoints, New Rectangle(0, 0, e_followpointimage.Width, e_followpointimage.Height), GraphicsUnit.Pixel, imgattr)
+A:
+            Next
+
+------------------------------------------------------
+
+'Draw hitcircles
+            For Each circle In e_circles.ToArray
+                Dim values As New ArrayList
+                Dim currentindex As Integer = 0
+                While currentindex <> -1
+                    Dim nextindex As Integer = circle.IndexOf(",", currentindex + 1)
+                    values.Add(circle.Substring(IIf(currentindex = 0, 0, currentindex + 1), IIf(nextindex = -1, circle.Length - (currentindex + 1), nextindex - (IIf(currentindex = 0, currentindex, currentindex + 1)))))
+                    currentindex = nextindex
+                End While
+                e.Graphics.DrawImage(e_combocoloredcircles(values(2)), CInt(values(0) - e_hitcircleimage.Width / 2), CInt(values(1) - e_hitcircleimage.Height / 2), CInt(128), CInt(128))
+                e.Graphics.DrawImage(e_hitcircleoverlayimage, CInt(values(0) - e_hitcircleoverlayimage.Width / 2), CInt(values(1) - e_hitcircleoverlayimage.Height / 2), CInt(128), CInt(128))
+                Dim numberimage As Image = translatenum(values(3))
+                e.Graphics.DrawImage(numberimage, CInt(values(0) - numberimage.Width / 1.3 / 2), CInt(values(1) - numberimage.Height / 1.3 / 2), CInt(numberimage.Width / 1.3), CInt(numberimage.Height / 1.3))
+                If values(5) = -1 Then 'initial value for new circle
+                    'Set the initial time
+                    values(5) = Date.Now.TimeOfDay.TotalMilliseconds
+                    e_circles(e_circles.IndexOf(circle)) = values(0) & "," & values(1) & "," & values(2) & "," & values(3) & "," & values(4) & "," & values(5)
+                Else
+                    Dim timeelapsed As Double = Date.Now.TimeOfDay.TotalMilliseconds - values(5)
+                    Dim inflationamnt As Double = (e_maxapproachcircleinflation - e_minapproachcircleinflation) - ((e_maxapproachcircleinflation - e_minapproachcircleinflation) / (a_ar11time + a_arincrement * (11 - s_approachrate))) * timeelapsed
+                    If inflationamnt < e_minapproachcircleinflation Then
+                        'Create virtual boundaries for 50, 100 and 300 hitcircles
+                        Dim gp300 As New System.Drawing.Drawing2D.GraphicsPath
+                        Dim gp100 As New System.Drawing.Drawing2D.GraphicsPath
+                        Dim gp50 As New System.Drawing.Drawing2D.GraphicsPath
+                        gp300.AddEllipse(CInt(values(0) - e_hitcircleimage.Width / 2 / 2), CInt(values(1) - e_hitcircleimage.Height / 2 / 2), CInt(128 / 2), CInt(128 / 2))
+                        gp100.AddEllipse(CInt(values(0) - 3 * e_hitcircleimage.Width / 2 / 4), CInt(values(1) - 3 * e_hitcircleimage.Height / 2 / 4), CInt(3 * 128 / 4), CInt(3 * 128 / 4))
+                        gp50.AddEllipse(CInt(values(0) - e_hitcircleimage.Width / 2), CInt(values(1) - e_hitcircleimage.Height / 2), CInt(128), CInt(128))
+                        If gp300.IsVisible(PointToClient(Cursor.Position)) Then
+                            e_pointimages.Add(values(0) & "," & values(1) & ",300," & Date.Now.TimeOfDay.TotalMilliseconds)
+                            s_score += 300
+                        ElseIf gp100.IsVisible(PointToClient(Cursor.Position)) Then
+                            e_pointimages.Add(values(0) & "," & values(1) & ",100," & Date.Now.TimeOfDay.TotalMilliseconds)
+                            s_score += 100
+                        ElseIf gp50.IsVisible(PointToClient(Cursor.Position)) Then
+                            e_pointimages.Add(values(0) & "," & values(1) & ",50," & Date.Now.TimeOfDay.TotalMilliseconds)
+                            s_score += 50
+                        Else
+                            e_pointimages.Add(values(0) & "," & values(1) & ",0," & Date.Now.TimeOfDay.TotalMilliseconds)
+                        End If
+                        s_maxscore += 300
+                        e_circles.Remove(circle)
+                        System.Threading.Tasks.Parallel.ForEach(e_fpointimages.ToArray, Sub(fp)
+                                                                                            If fp.Substring(0, fp.Indexof(",")) = values(3) Then
+                                                                                                e_fpointimages(e_fpointimages.IndexOf(fp)) = fp & "," & Date.Now.TimeOfDay.TotalMilliseconds
+                                                                                            End If
+                                                                                        End Sub)
+
+                    ElseIf (inflationamnt < 0.5 * (e_maxapproachcircleinflation - e_minapproachcircleinflation)) And (e_circles.Count < 2) Then
+                        Dim approachcirclesize As New Point(e_approachcircleimage.Width * inflationamnt, e_approachcircleimage.Height * inflationamnt)
+                        e.Graphics.DrawImage(e_combocoloredapproachcircles(values(2)), CInt(values(0) - approachcirclesize.X / 2), CInt(values(1) - approachcirclesize.Y / 2), approachcirclesize.Y, approachcirclesize.Y)
+                        Dim r As New Random
+                        Dim randomposition As New Point(r.Next(e_hitcircleimage.Width, ClientSize.Width - e_hitcircleimage.Width), r.Next(e_hitcircleimage.Height, ClientSize.Height - e_hitcircleimage.Height))
+                        Dim combonumber As Integer = IIf(values(3) = 9, 1, values(3) + 1)
+                        Dim combo As Integer = IIf(values(3) = 9, IIf(values(2) = 7, 0, values(2) + 1), values(2))
+                        e_circles.Add(randomposition.X & "," & randomposition.Y & "," & combo & "," & combonumber & "," & e_maxapproachcircleinflation & ",-1")
+
+                        Dim c1 As String = e_circles(e_circles.IndexOf(circle))
+                        Dim c1x As Integer = c1.Substring(0, c1.IndexOf(","))
+                        Dim c1y As Integer = c1.Substring(c1.IndexOf(",") + 1, c1.IndexOf(",", c1.IndexOf(",") + 1) - (c1.IndexOf(",") + 1))
+                        Dim dx As Integer = randomposition.X - c1x
+                        Dim dy As Integer = randomposition.Y - c1y
+                        Dim tht As Double = Math.Atan2(Math.Abs(dy), Math.Abs(dx))
+                        Dim newtht As Double = 0
+                        Dim hyp As Double = Math.Sqrt(dy ^ 2 + dx ^ 2)
+                        If (dx < 0) And (dy < 0) Then
+                            newtht = Math.PI - tht
+                        ElseIf (dx < 0) And (dy > 0) Then
+                            newtht = Math.PI + tht
+                        ElseIf (dx > 0) And (dy > 0) Then
+                            newtht = 2 * Math.PI - tht
+                        Else
+                            newtht = tht
+                        End If
+                        Dim divisor As Integer = hyp / 30
+                        Dim i As Integer = 2
+                        Dim n As Integer = 2
+                        While i < divisor
+                            e_fpointimages.Add(combonumber & "," & c1x + dx / i & "," & c1y + dy / i & "," & newtht)
+                            e_fpointimages.Add(combonumber & "," & randomposition.X - dx / i & "," & randomposition.Y - dy / i & "," & newtht)
+                            i = i ^ n
+                            n += 2
+                        End While
+
+
+                    Else
+                        Dim approachcirclesize As New Point(e_approachcircleimage.Width * inflationamnt, e_approachcircleimage.Height * inflationamnt)
+                        e.Graphics.DrawImage(e_combocoloredapproachcircles(values(2)), CInt(values(0) - approachcirclesize.X / 2), CInt(values(1) - approachcirclesize.Y / 2), approachcirclesize.Y, approachcirclesize.Y)
+                    End If
+                End If
+            Next
+
+-----------------------------------------------------------
+
+            'Draw points (300s,100s,50s)
+            For Each point In e_pointimages.ToArray
+                Dim values As New ArrayList
+                Dim currentindex As Integer = 0
+                While currentindex <> -1
+                    Dim nextindex As Integer = point.IndexOf(",", currentindex + 1)
+                    values.Add(point.Substring(IIf(currentindex = 0, 0, currentindex + 1), IIf(nextindex = -1, point.Length - (currentindex + 1), nextindex - (IIf(currentindex = 0, currentindex, currentindex + 1)))))
+                    currentindex = nextindex
+                End While
+                If values(3) + 2000 < Date.Now.TimeOfDay.TotalMilliseconds Then
+                    e_pointimages.Remove(point)
+                Else
+                    Dim pointimg As Image = IIf(values(2) = 300, e_300image, IIf(values(2) = 100, e_100image, IIf(values(2) = 50, e_50image, e_0image)))
+                    Dim newalpha As Double = 1 - ((Date.Now.TimeOfDay.TotalMilliseconds - values(3)) / 1000)
+                    alphaclrmtrx.Matrix33 = newalpha
+                    imgattr.SetColorMatrix(alphaclrmtrx)
+                    e.Graphics.DrawImage(pointimg, New Rectangle(CInt(values(0) - pointimg.Width / 2), CInt(values(1) - pointimg.Height / 2), pointimg.Width, pointimg.Height), 0, 0, pointimg.Width, pointimg.Height, GraphicsUnit.Pixel, imgattr)
+                End If
+            Next
+
+----------------------------------------------------------
+
+            'Following code is old cursor code - without spin
+            ' Dim cursorwidth As Integer = IIf(m_mousedown = False, e_cursorimage.Width, e_cursorimage.Width * 1.2)
+            ' Dim cursorheight As Integer = IIf(m_mousedown = False, e_cursorimage.Height, e_cursorimage.Height * 1.2)
+            ' e.Graphics.DrawImage(e_cursorimage, New Rectangle(PointToClient(Cursor.Position).X - cursorwidth / 2, PointToClient(Cursor.Position).Y - cursorheight / 2, cursorwidth, cursorheight))
+            '  e.Graphics.DrawImage(e_cursormiddleimage, New Point(PointToClient(Cursor.Position).X - e_cursormiddleimage.Width / 2, PointToClient(Cursor.Position).Y - e_cursormiddleimage.Height / 2))
+
+--------------------------------------------------------
+
+                        'Dim divisor As Integer = hyp / 30
+                        'Dim i As Integer = 2
+                        'Dim n As Integer = 2
+                        'While i < divisor
+                        ' e_fpointimages.Add(combonumber & "," & c1x + dx / i & "," & c1y + dy / i & "," & newtht)
+                        ' e_fpointimages.Add(combonumber & "," & randomposition.X - dx / i & "," & randomposition.Y - dy / i & "," & newtht)
+                        ' i = i ^ n
+                        ' n += 2
+                        ' End While
+
+--------------------------------------------------------------
+
+    'Draw hitcircles
+            For Each circle In e_circles.ToArray
+                Dim values As New ArrayList
+                Dim currentindex As Integer = 0
+                While currentindex <> -1
+                    Dim nextindex As Integer = circle.IndexOf(",", currentindex + 1)
+                    values.Add(circle.Substring(IIf(currentindex = 0, 0, currentindex + 1), IIf(nextindex = -1, circle.Length - (currentindex + 1), nextindex - (IIf(currentindex = 0, currentindex, currentindex + 1)))))
+                    currentindex = nextindex
+                End While
+                e.Graphics.DrawImage(e_combocoloredcircles(values(2)), CInt(values(0) - s_circlesize / 2), CInt(values(1) - s_circlesize / 2), s_circlesize, s_circlesize)
+                e.Graphics.DrawImage(e_hitcircleoverlayimage, CInt(values(0) - s_circlesize / 2), CInt(values(1) - s_circlesize / 2), s_circlesize, s_circlesize)
+                Dim numberimage As Image = translatenum(values(3))
+                e.Graphics.DrawImage(numberimage, CInt(values(0) - numberimage.Width / (128 / (0.769 * s_circlesize)) / 2), CInt(values(1) - numberimage.Height / (128 / (0.769 * s_circlesize)) / 2), CInt(numberimage.Width / (128 / (0.769 * s_circlesize))), CInt(numberimage.Height / (128 / (0.769 * s_circlesize))))
+                If values(5) = -1 Then 'initial value for new circle
+                    'Set the initial time
+                    values(5) = Date.Now.TimeOfDay.TotalMilliseconds
+                    Dim newcircle As String = ""
+                    For i = 0 To values.Count - 1
+                        newcircle += values(i) & ","
+                    Next
+                    newcircle += "0"
+                    e_circles(e_circles.IndexOf(circle)) = newcircle
+                Else
+                    Dim timeelapsed As Double = Date.Now.TimeOfDay.TotalMilliseconds - values(5)
+                    Dim inflationamnt As Double = (e_maxapproachcircleinflation - e_minapproachcircleinflation) - ((e_maxapproachcircleinflation - e_minapproachcircleinflation) / (a_ar11time + a_arincrement * (11 - s_approachrate))) * timeelapsed
+                    If inflationamnt < e_minapproachcircleinflation Then
+                        'Create virtual boundaries for 50, 100 and 300 hitcircles
+                        Dim gp300 As New System.Drawing.Drawing2D.GraphicsPath
+                        Dim gp100 As New System.Drawing.Drawing2D.GraphicsPath
+                        Dim gp50 As New System.Drawing.Drawing2D.GraphicsPath
+                        gp300.AddEllipse(CInt(values(0) - s_circlesize / 2 / 2 / s_overalldifficulty), CInt(values(1) - s_circlesize / 2 / 2 / s_overalldifficulty), CInt(s_circlesize / 2 / s_overalldifficulty), CInt(s_circlesize / 2 / s_overalldifficulty))
+                        gp100.AddEllipse(CInt(values(0) - 3 * s_circlesize / 2 / 4 / s_overalldifficulty), CInt(values(1) - 3 * s_circlesize / 2 / 4 / s_overalldifficulty), CInt(3 * s_circlesize / 4 / s_overalldifficulty), CInt(3 * s_circlesize / 4 / s_overalldifficulty))
+                        gp50.AddEllipse(CInt(values(0) - s_circlesize / 2), CInt(values(1) - s_circlesize / 2), CInt(s_circlesize), CInt(s_circlesize))
+                        If gp300.IsVisible(PointToClient(Cursor.Position)) Then
+                            e_pointimages.Add(values(0) & "," & values(1) & ",300," & Date.Now.TimeOfDay.TotalMilliseconds)
+                            s_score += 300
+                        ElseIf gp100.IsVisible(PointToClient(Cursor.Position)) Then
+                            e_pointimages.Add(values(0) & "," & values(1) & ",100," & Date.Now.TimeOfDay.TotalMilliseconds)
+                            s_score += 100
+                        ElseIf gp50.IsVisible(PointToClient(Cursor.Position)) Then
+                            e_pointimages.Add(values(0) & "," & values(1) & ",50," & Date.Now.TimeOfDay.TotalMilliseconds)
+                            s_score += 50
+                        Else
+                            e_pointimages.Add(values(0) & "," & values(1) & ",0," & Date.Now.TimeOfDay.TotalMilliseconds)
+                        End If
+                        s_maxscore += 300
+                        e_circles.Remove(circle)
+                        For Each fp In e_fpointimages.ToArray
+                            If fp.Substring(0, fp.Indexof(",")) = values(3) Then
+                                e_fpointimages(e_fpointimages.IndexOf(fp)) = fp & "," & Date.Now.TimeOfDay.TotalMilliseconds
+                            End If
+                        Next
+                    ElseIf (inflationamnt <= e_minapproachcircleinflation + (s_bpm / 100) * (e_maxapproachcircleinflation - e_minapproachcircleinflation)) Then
+                        Dim approachcirclesize As New Point(s_circlesize * inflationamnt, s_circlesize * inflationamnt)
+                        e.Graphics.DrawImage(e_combocoloredapproachcircles(values(2)), CInt(values(0) - approachcirclesize.X / 2), CInt(values(1) - approachcirclesize.Y / 2), approachcirclesize.Y, approachcirclesize.Y)
+                        Dim newcircle As String = ""
+                        If values.Count >= 7 Then
+                            If values(6) = "0" Then
+                                Dim r As New Random(CType(Date.Now.Ticks Mod System.Int32.MaxValue, Integer))
+                                Dim randomposition As New Point(r.Next(s_circlesize, ClientSize.Width - s_circlesize), r.Next(s_circlesize, ClientSize.Height - s_circlesize))
+                                Dim combonumber As Integer = IIf(values(3) = 9, 1, values(3) + 1)
+                                Dim combo As Integer = IIf(values(3) = 9, IIf(values(2) = 7, 0, values(2) + 1), values(2))
+                                e_circles.Add(randomposition.X & "," & randomposition.Y & "," & combo & "," & combonumber & "," & e_maxapproachcircleinflation & ",-1" & ",0")
+                                For i = 0 To values.Count - 1
+                                    If i = 6 Then
+                                        newcircle += "1"
+                                    Else
+                                        newcircle += values(i) & ","
+                                    End If
+                                Next
+                                e_circles(e_circles.IndexOf(circle)) = newcircle
+
+                                Dim dx As Integer = randomposition.X - values(0)
+                                Dim dy As Integer = randomposition.Y - values(1)
+                                Dim tht As Double = Math.Atan(Math.Abs(dy) / Math.Abs(dx))
+                                Dim newtht As Double = 0
+                                Dim hyp As Double = Math.Sqrt(dy ^ 2 + dx ^ 2)
+                                If (dx < 0) And (dy < 0) Then
+                                    newtht = Math.PI - tht
+                                ElseIf (dx < 0) And (dy > 0) Then
+                                    newtht = Math.PI + tht
+                                ElseIf (dx > 0) And (dy > 0) Then
+                                    newtht = 2 * Math.PI - tht
+                                Else
+                                    newtht = tht
+                                End If
+                                Dim n As Integer = Math.Sqrt(e_followpointimage.Width ^ 2 + e_followpointimage.Height ^ 2) + 30
+                                For i = 1 To hyp / n - 1
+                                    e_fpointimages.Add(combonumber & "," & values(0) + (dx * n * i) / hyp & "," & values(1) + (dy * n * i) / hyp & "," & newtht)
+                                Next
+                            End If
+                        End If
+                    Else
+                        Dim approachcirclesize As New Point(s_circlesize * inflationamnt, s_circlesize * inflationamnt)
+                        e.Graphics.DrawImage(e_combocoloredapproachcircles(values(2)), CInt(values(0) - approachcirclesize.X / 2), CInt(values(1) - approachcirclesize.Y / 2), approachcirclesize.Y, approachcirclesize.Y)
+                    End If
+                End If
+            Next
+--------------------------------------------------
+          
+            Dim cursorwidth As Integer = IIf(m_mousedown = False, e_cursortrailimage.Width, e_cursortrailimage.Width * 1.2)
+            Dim cursorheight As Integer = IIf(m_mousedown = False, e_cursortrailimage.Height, e_cursortrailimage.Height * 1.2)
+            Dim uLeft As Point = Rotate(-cursorwidth / 2, cursorheight / 2, c_cursorrotation)
+            Dim uRight As Point = Rotate(cursorwidth / 2, cursorheight / 2, c_cursorrotation)
+            Dim lLeft As Point = Rotate(-cursorwidth / 2, -cursorheight / 2, c_cursorrotation)
+            Dim npoints() As Point = {uLeft + mousepos, uRight + mousepos, lLeft + mousepos}
+
+
+			  cursorwidth = IIf(m_mousedown = False, e_cursorimage.Width, e_cursorimage.Width * 1.2)
+            cursorheight = IIf(m_mousedown = False, e_cursorimage.Height, e_cursorimage.Height * 1.2)
+            uLeft = Rotate(-cursorwidth / 2, cursorheight / 2, c_cursorrotation)
+            uRight = Rotate(cursorwidth / 2, cursorheight / 2, c_cursorrotation)
+            lLeft = Rotate(-cursorwidth / 2, -cursorheight / 2, c_cursorrotation)
+            npoints = {uLeft + mousepos, uRight + mousepos, lLeft + mousepos}
+
+
+			If c_cursorrotation <= -(2 * Math.PI) Then
+                c_cursorrotation = (2 * Math.PI) * ((c_cursorrotation - 2 * Math.PI) / 8000)
+            Else
+                c_cursorrotation -= (2 * Math.PI) * ((Date.Now.TimeOfDay.TotalMilliseconds - c_lastframe) / 8000)
+            End If
+            Dim cursormiddlewidth As Integer = IIf(m_mousedown = False, e_cursormiddleimage.Width, e_cursormiddleimage.Width * 1.2)
+            Dim cursormiddleheight As Integer = IIf(m_mousedown = False, e_cursormiddleimage.Height, e_cursormiddleimage.Height * 1.2)
+            uLeft = Rotate(-cursormiddlewidth / 2, cursormiddleheight / 2, c_cursorrotation)
+            uRight = Rotate(cursormiddlewidth / 2, cursormiddleheight / 2, c_cursorrotation)
+            lLeft = Rotate(-cursormiddlewidth / 2, -cursormiddleheight / 2, c_cursorrotation)
+            npoints = {uLeft + mousepos, uRight + mousepos, lLeft + mousepos}
+
+
+			     c_lastframe = Date.Now.TimeOfDay.TotalMilliseconds
